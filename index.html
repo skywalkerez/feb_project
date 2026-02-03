@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Will you be my Valentine? 💘</title>
+  <style>
+    :root{
+      --bg1:#ff7aa2;
+      --bg2:#ffd1dc;
+      --card:#ffffffdd;
+      --text:#2a2a2a;
+      --yes:#22c55e;
+      --no:#ef4444;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text);
+      background: radial-gradient(circle at 20% 20%, #fff 0 10%, transparent 11%),
+                  radial-gradient(circle at 80% 25%, #fff 0 9%, transparent 10%),
+                  radial-gradient(circle at 30% 85%, #fff 0 8%, transparent 9%),
+                  linear-gradient(135deg,var(--bg1),var(--bg2));
+      overflow:hidden;
+    }
+
+    .card{
+      width:min(720px, 92vw);
+      padding:28px 24px 22px;
+      background:var(--card);
+      border:1px solid #ffffff80;
+      border-radius:24px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.15);
+      text-align:center;
+      position:relative;
+      backdrop-filter: blur(8px);
+    }
+
+    h1{
+      margin:4px 0 16px;
+      font-size: clamp(26px, 4vw, 40px);
+      letter-spacing:.2px;
+    }
+
+    .photo-wrap{
+      width:min(320px, 70vw);
+      aspect-ratio:1/1;
+      margin: 10px auto 18px;
+      border-radius: 22px;
+      overflow:hidden;
+      border: 3px solid #ffffffb0;
+      box-shadow: 0 10px 30px rgba(0,0,0,.15);
+      background:#fff;
+      display:grid;
+      place-items:center;
+    }
+
+    .photo-wrap img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    .buttons{
+      display:flex;
+      gap:14px;
+      justify-content:center;
+      align-items:center;
+      flex-wrap:wrap;
+      padding: 10px 0 4px;
+      position:relative;
+      min-height:84px; /* gives space for the runaway button */
+    }
+
+    button{
+      border:0;
+      padding: 14px 22px;
+      border-radius: 999px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor:pointer;
+      box-shadow: 0 10px 22px rgba(0,0,0,.18);
+      transition: transform .12s ease, box-shadow .12s ease;
+      user-select:none;
+      touch-action: manipulation;
+    }
+
+    button:active{ transform: translateY(1px) scale(.99); box-shadow: 0 7px 16px rgba(0,0,0,.16); }
+
+    #yesBtn{
+      background: linear-gradient(180deg, #35d775, var(--yes));
+      color:white;
+      transform-origin:center;
+    }
+
+    #noBtn{
+      background: linear-gradient(180deg, #ff6b6b, var(--no));
+      color:white;
+      position:relative; /* becomes absolute once it starts running */
+    }
+
+    .hint{
+      margin: 10px 0 0;
+      font-size: 14px;
+      opacity: .75;
+    }
+
+    .modal{
+      position:fixed;
+      inset:0;
+      display:none;
+      place-items:center;
+      background: rgba(0,0,0,.45);
+      padding:24px;
+    }
+    .modal.open{ display:grid; }
+
+    .modal .box{
+      width:min(560px, 92vw);
+      background:#fff;
+      border-radius:22px;
+      padding:22px 18px;
+      text-align:center;
+      box-shadow: 0 24px 80px rgba(0,0,0,.35);
+    }
+    .modal .box h2{ margin: 6px 0 8px; font-size: 28px; }
+    .modal .box p{ margin: 0 0 14px; font-size: 16px; }
+    .modal .box .close{
+      background:#111827;
+      color:#fff;
+      padding:12px 18px;
+      border-radius:999px;
+      font-weight:700;
+      cursor:pointer;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Will you be my Valentine? 💘</h1>
+
+    <div class="photo-wrap">
+      <!-- Put your image file next to index.html and rename here -->
+      <img src="photo.jpg" alt="💞" />
+    </div>
+
+    <div class="buttons" id="arena">
+      <button id="yesBtn">Yes 💖</button>
+      <button id="noBtn">No 🙈</button>
+    </div>
+
+    <div class="hint">Don't try to press “No” 😄</div>
+  </main>
+
+  <div class="modal" id="modal">
+    <div class="box">
+      <h2>YAY!!! 🥰💘</h2>
+      <p>You just made me the happiest person ever.</p>
+      <p><strong>Happy Valentine’s Day!</strong></p>
+      <button class="close" id="closeModal">Awww 💞</button>
+    </div>
+  </div>
+
+  <script>
+    const yesBtn = document.getElementById("yesBtn");
+    const noBtn  = document.getElementById("noBtn");
+    const arena  = document.getElementById("arena");
+    const modal  = document.getElementById("modal");
+    const closeModal = document.getElementById("closeModal");
+
+    // --- Behavior tuning ---
+    let noClicks = 0;               // each "No" click grows Yes
+    let yesScale = 1;               // current scale of Yes button
+    const yesGrowthPerNo = 0.18;    // how much Yes grows per No click
+    const maxYesScale = 3.2;        // cap so it doesn't become ridiculous
+    const runDistance = 120;        // how close mouse gets before No runs away
+    const padding = 10;             // keep No within arena padding
+
+    // Position state for runaway No
+    let runaway = false;
+    let noX = 0, noY = 0;           // relative to arena (px)
+
+    function openModal() { modal.classList.add("open"); }
+    function hideModal() { modal.classList.remove("open"); }
+
+    yesBtn.addEventListener("click", () => {
+      openModal();
+      // Optional: confetti-like hearts (simple)
+      burstHearts();
+    });
+
+    closeModal.addEventListener("click", hideModal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) hideModal(); });
+
+    noBtn.addEventListener("click", () => {
+      noClicks++;
+      yesScale = Math.min(maxYesScale, yesScale + yesGrowthPerNo);
+      yesBtn.style.transform = `scale(${yesScale})`;
+
+      // Start runaway mode after first "No"
+      if (!runaway) {
+        runaway = true;
+        // Switch to absolute positioning within arena
+        const aRect = arena.getBoundingClientRect();
+        const nRect = noBtn.getBoundingClientRect();
+
+        // initial position = current visual position inside arena
+        noX = (nRect.left - aRect.left);
+        noY = (nRect.top  - aRect.top);
+
+        noBtn.style.position = "absolute";
+        noBtn.style.left = `${noX}px`;
+        noBtn.style.top  = `${noY}px`;
+      } else {
+        // If she catches it again: grow Yes again and make No hop immediately
+        hopNoButtonAway();
+      }
+    });
+
+    // Mouse (and touch) proximity makes No run away
+    arena.addEventListener("mousemove", (e) => {
+      if (!runaway) return;
+
+      const aRect = arena.getBoundingClientRect();
+      const mouseX = e.clientX - aRect.left;
+      const mouseY = e.clientY - aRect.top;
+
+      evadeIfClose(mouseX, mouseY);
+    });
+
+    // Touch support: treat touchmove as mousemove
+    arena.addEventListener("touchmove", (e) => {
+      if (!runaway) return;
+      const t = e.touches[0];
+      if (!t) return;
+
+      const aRect = arena.getBoundingClientRect();
+      const x = t.clientX - aRect.left;
+      const y = t.clientY - aRect.top;
+
+      evadeIfClose(x, y);
+    }, { passive: true });
+
+    function evadeIfClose(mouseX, mouseY){
+      const nRect = noBtn.getBoundingClientRect();
+      const aRect = arena.getBoundingClientRect();
+
+      // No button center relative to arena
+      const cx = (nRect.left - aRect.left) + nRect.width / 2;
+      const cy = (nRect.top  - aRect.top)  + nRect.height / 2;
+
+      const dx = mouseX - cx;
+      const dy = mouseY - cy;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < runDistance) {
+        // Move opposite direction from the mouse with some randomness
+        const angle = Math.atan2(dy, dx);
+        const push = (runDistance - dist) * 1.2;
+
+        noX -= Math.cos(angle) * push;
+        noY -= Math.sin(angle) * push;
+
+        // Add jitter so it's playful and not predictable
+        noX += (Math.random() - 0.5) * 22;
+        noY += (Math.random() - 0.5) * 22;
+
+        clampNoWithinArena();
+        renderNo();
+      }
+    }
+
+    function hopNoButtonAway(){
+      // Big random hop, then clamp
+      noX += (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 120);
+      noY += (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 140);
+      clampNoWithinArena();
+      renderNo();
+    }
+
+    function clampNoWithinArena(){
+      const aRect = arena.getBoundingClientRect();
+      const nRect = noBtn.getBoundingClientRect();
+
+      const maxX = aRect.width  - nRect.width  - padding;
+      const maxY = aRect.height - nRect.height - padding;
+
+      noX = Math.max(padding, Math.min(noX, maxX));
+      noY = Math.max(padding, Math.min(noY, maxY));
+    }
+
+    function renderNo(){
+      noBtn.style.left = `${noX}px`;
+      noBtn.style.top  = `${noY}px`;
+    }
+
+    // Tiny heart burst effect (no libraries)
+    function burstHearts(){
+      const count = 18;
+      for(let i=0;i<count;i++){
+        const s = document.createElement("div");
+        s.textContent = "💖";
+        s.style.position = "fixed";
+        s.style.left = (window.innerWidth/2 + (Math.random()-0.5)*180) + "px";
+        s.style.top  = (window.innerHeight/2 + (Math.random()-0.5)*120) + "px";
+        s.style.fontSize = (18 + Math.random()*22) + "px";
+        s.style.transform = "translate(-50%,-50%)";
+        s.style.transition = "transform 900ms ease, opacity 900ms ease";
+        s.style.opacity = "1";
+        document.body.appendChild(s);
+
+        requestAnimationFrame(()=>{
+          s.style.transform =
+            `translate(${(Math.random()-0.5)*420}px, ${-260 - Math.random()*260}px) rotate(${(Math.random()-0.5)*80}deg)`;
+          s.style.opacity = "0";
+        });
+
+        setTimeout(()=> s.remove(), 950);
+      }
+    }
+  </script>
+</body>
+</html>
