@@ -60,12 +60,15 @@
       place-items:center;
     }
 
-    .photo-wrap img{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
-    }
+    
+.photo-wrap img{
+  width:100%;
+  height:100%;
+  object-fit: cover;        /* fills container, may crop */
+  object-position: 50% 35%; /* move crop focus up (often better for faces) */
+  display:block;
+}
+
 
     .buttons{
       display:flex;
@@ -326,4 +329,5 @@
     }
   </script>
 </body>
+
 </html>
